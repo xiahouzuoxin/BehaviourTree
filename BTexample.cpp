@@ -54,7 +54,7 @@ int BTexample(void) {
 	std::cout << "registered functions: " << std::endl;
 	print_registered_tasks();
 
-	std::string json_path = "bt.json";
+	std::string json_path = "./BehaviourTree/bt.json";
 	std::string config_doc = BT_getConfigJson(json_path);
 
 	Json::Value root;   // will contains the root value after parsing.
