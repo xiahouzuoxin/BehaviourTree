@@ -37,8 +37,14 @@ BT_task* BT_buildTreeWithJsonValue(const Json::Value& json)
 			root->addChild( BT_buildTreeWithJsonValue(json["children"].operator[](i)) );
 		}
 		return root;
+	} else if (json["type"] == "RandomSelector") {
+		BT_task* root = new BT_random_selector();
+		for (uint32_t i = 0; i < json["children"].size(); i++) {
+			root->addChild(BT_buildTreeWithJsonValue(json["children"].operator[](i)));
+		}
+		return root;
 	} else if (json["type"] == "Sequence") {
-		BT_sequence* rootseq = new BT_sequence();
+		BT_task* rootseq = new BT_sequence();
 		for (uint32_t i = 0; i<json["children"].size(); i++) {
 			rootseq->addChild( BT_buildTreeWithJsonValue(json["children"].operator[](i)) );
 		}

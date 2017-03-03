@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <assert.h>
 
-#define BT_NonDeterministic
 #define BT_BUILD_WITH_JSON    // Need [jsoncpp](https://github.com/open-source-parsers/jsoncpp/releases) for support. (test on 1.8.0)
 
 #define BT_LOG(msg)             printf("%s:%d	%s\n", __FILE__, __LINE__, msg)
@@ -60,21 +59,60 @@ protected:
 	std::function<BT_status(void)> task_func;
 };
 
+
+/**
+ * A Selector will return immediately with a success status code when one of its children runs
+ * successfully. As long as its children are failing, it will keep on trying. If it runs out of children
+ * completely, it will return a failure status code.
+ */
 class BT_selector : public BT_task {
 public:
 	BT_selector(std::function<BT_status(void)> task = [] { return BT_status::SUCCESS; }, const std::string& name = "Unknow")
 		: BT_task(task, name) {}
 
 	virtual BT_status run() {
-#ifdef BT_NonDeterministic
+		for (auto &curChild : mChildren) {
+			BT_status state = curChild->run();
+			if (state != BT_status::FAILURE) {
+				return state;
+			}
+		}
+		return BT_status::FAILURE;
+	}
+};
+
+class BT_random_selector : public BT_task {
+public:
+	BT_random_selector(std::function<BT_status(void)> task = [] { return BT_status::SUCCESS; }, const std::string& name = "Unknow")
+		: BT_task(task, name) {}
+
+	virtual BT_status run() {
 		std::vector<std::shared_ptr<BT_task> > copy_mChildren = mChildren;
 		std::random_device rd;
 		std::mt19937 generator(rd());
 		std::shuffle(copy_mChildren.begin(), copy_mChildren.end(), generator);
+		for (auto &curChild : copy_mChildren) {
+			BT_status state = curChild->run();
+			if (state != BT_status::FAILURE) {
+				return state;
+			}
+		}
+		return BT_status::FAILURE;
+	}
+};
+
+/**
+* A Sequence will return immediately with a failure status code when one of its children fails.
+* As long as its children are succeeding, it will keep going. If it runs out of children, it will return in
+* success.
+*/
+class BT_sequence : public BT_task {
+public:
+	BT_sequence(std::function<BT_status(void)> task = [] { return BT_status::SUCCESS; }, const std::string& name = "Unknow")
+		: BT_task(task, name) {}
+
+	virtual BT_status run() {
 		for (auto &curChild : mChildren) {
-#else
-		for (auto &curChild : mChildren) {
-#endif
 			BT_status state = curChild->run();
 			if (state != BT_status::SUCCESS) {
 				return state;
@@ -84,27 +122,23 @@ public:
 	}
 };
 
-class BT_sequence : public BT_task {
+class BT_random_sequence : public BT_task {
 public:
-	BT_sequence(std::function<BT_status(void)> task = [] { return BT_status::SUCCESS; }, const std::string& name = "Unknow")
+	BT_random_sequence(std::function<BT_status(void)> task = [] { return BT_status::SUCCESS; }, const std::string& name = "Unknow")
 		: BT_task(task, name) {}
 
 	virtual BT_status run() {
-#ifdef BT_NonDeterministic
 		std::vector<std::shared_ptr<BT_task> > copy_mChildren = mChildren;
 		std::random_device rd;
 		std::mt19937 generator(rd());
 		std::shuffle(copy_mChildren.begin(), copy_mChildren.end(), generator);
-		for (auto &curChild : mChildren) {
-#else
-		for (auto &curChild : mChildren) {
-#endif
+		for (auto &curChild : copy_mChildren) {
 			BT_status state = curChild->run();
-			if (state != BT_status::FAILURE) {
+			if (state != BT_status::SUCCESS) {
 				return state;
 			}
 		}
-		return BT_status::FAILURE;
+		return BT_status::SUCCESS;
 	}
 };
 
